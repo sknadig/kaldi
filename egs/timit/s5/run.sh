@@ -80,8 +80,12 @@ echo ===========================================================================
 echo "           tri1 : Deltas + Delta-Deltas Training & Decoding               "
 echo ============================================================================
 
-steps/align_si.sh --boost-silence 1.25 --nj "$train_nj" --cmd "$train_cmd" \
- data/train data/lang exp/mono exp/mono_ali
+for x in train test dev; do
+  steps/align_si.sh --boost-silence 1.25 --nj "$decode_nj" --cmd "$train_cmd" \
+  data/train data/lang exp/mono exp/mono_ali_$x
+done
+
+./generate_alignments.sh
 
 exit 0;
 
