@@ -36,7 +36,7 @@ echo "                Data & Lexicon & Language Preparation                     
 echo ============================================================================
 
 #timit=/export/corpora5/LDC/LDC93S1/timit/TIMIT # @JHU
-timit=/mnt/matylda2/data/TIMIT/timit # @BUT
+timit=/home/neo/MS/TIMIT_kaldi # @BUT
 
 local/timit_data_prep.sh $timit || exit 1
 
@@ -82,6 +82,8 @@ echo ===========================================================================
 
 steps/align_si.sh --boost-silence 1.25 --nj "$train_nj" --cmd "$train_cmd" \
  data/train data/lang exp/mono exp/mono_ali
+
+exit 0;
 
 # Train tri1, which is deltas + delta-deltas, on train data.
 steps/train_deltas.sh --cmd "$train_cmd" \
