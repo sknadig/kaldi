@@ -23,7 +23,7 @@
 #include <netdb.h>
 #include <fcntl.h>
 
-#include "feat/feature-mfcc.h"
+#include "feat/feature-spectrogram.h"
 #include "online/online-audio-source.h"
 #include "online/online-feat-input.h"
 
@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
     using namespace kaldi;
 
     typedef kaldi::int32 int32;
-    typedef OnlineFeInput<Mfcc> FeInput;
+    typedef OnlineFeInput<Spectrogram> FeInput;
 
     // Time out interval for the PortAudio source
     const int32 kTimeout = 500; // half second
@@ -82,13 +82,12 @@ int main(int argc, char *argv[]) {
     // We are not properly registering/exposing MFCC and frame extraction options,
     // because there are parts of the online decoding code, where some of these
     // options are hardwired(ToDo: we should fix this at some point)
-    MfccOptions mfcc_opts;
-    mfcc_opts.use_energy = false;
-    int32 frame_length = mfcc_opts.frame_opts.frame_length_ms = 25;
-    int32 frame_shift = mfcc_opts.frame_opts.frame_shift_ms = 10;
+    SpectrogramOptions spec_opts;
+    int32 frame_length  = 25;
+    int32 frame_shift =  10;
     OnlinePaSource au_src(kTimeout, kSampleFreq, kPaRingSize, kPaReportInt);
-    Mfcc mfcc(mfcc_opts);
-    FeInput fe_input(&au_src, &mfcc,
+    Spectrogram spec(spec_opts);
+    FeInput fe_input(&au_src, &spec,
                      frame_length * (kSampleFreq / 1000),
                      frame_shift * (kSampleFreq / 1000));
     std::cerr << std::endl << "Sending features to " << server_addr_str
@@ -96,7 +95,7 @@ int main(int argc, char *argv[]) {
     char buf[65535];
     Matrix<BaseFloat> feats;
     while (1) {
-      feats.Resize(batch_size, mfcc_opts.num_ceps, kUndefined);
+      feats.Resize(batch_size, 257, kUndefined);
       bool more_feats = fe_input.Compute(&feats);
       if (feats.NumRows() > 0) {
         std::stringstream ss;

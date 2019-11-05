@@ -22,8 +22,6 @@
 
 #include <netdb.h>
 #include <fcntl.h>
-
-#include "feat/feature-mfcc.h"
 #include "online/online-audio-source.h"
 #include "online/online-feat-input.h"
 
@@ -33,7 +31,6 @@ int main(int argc, char *argv[]) {
     using namespace kaldi;
 
     typedef kaldi::int32 int32;
-    typedef OnlineFeInput<Mfcc> FeInput;
 
     // Time out interval for the PortAudio source
     const int32 kTimeout = 500; // half second
@@ -79,28 +76,21 @@ int main(int argc, char *argv[]) {
     if (fcntl(sock_desc, F_SETFL, flags) == -1)
       KALDI_ERR << "fcntl() failed to put the socket in non-blocking mode!";
 
-    // We are not properly registering/exposing MFCC and frame extraction options,
-    // because there are parts of the online decoding code, where some of these
-    // options are hardwired(ToDo: we should fix this at some point)
-    MfccOptions mfcc_opts;
-    mfcc_opts.use_energy = false;
-    int32 frame_length = mfcc_opts.frame_opts.frame_length_ms = 25;
-    int32 frame_shift = mfcc_opts.frame_opts.frame_shift_ms = 10;
+    
+    int32 frame_length = 25;
     OnlinePaSource au_src(kTimeout, kSampleFreq, kPaRingSize, kPaReportInt);
-    Mfcc mfcc(mfcc_opts);
-    FeInput fe_input(&au_src, &mfcc,
-                     frame_length * (kSampleFreq / 1000),
-                     frame_shift * (kSampleFreq / 1000));
-    std::cerr << std::endl << "Sending features to " << server_addr_str
-              << ':' << server_port_str << " ... " << std::endl;
-    char buf[65535];
-    Matrix<BaseFloat> feats;
+
+    
+    // Prepare the input audio samples
+    int32 samples_req = frame_length * (kSampleFreq / 1000);
+
+    Vector<BaseFloat> read_samples(samples_req);
+    
     while (1) {
-      feats.Resize(batch_size, mfcc_opts.num_ceps, kUndefined);
-      bool more_feats = fe_input.Compute(&feats);
-      if (feats.NumRows() > 0) {
+        au_src.Read(&read_samples);
+        // std::cout << read_samples;
         std::stringstream ss;
-        feats.Write(ss, false); // serialize features as binary data
+        read_samples.Write(ss, false);
         std::cout << ss.str();
         ssize_t sent = sendto(sock_desc,
                               ss.str().c_str(),
@@ -109,17 +99,6 @@ int main(int argc, char *argv[]) {
                               server_addr->ai_addrlen);
         if (sent == -1)
           KALDI_ERR << "sendto() call failed!";
-        ssize_t rcvd = recvfrom(sock_desc, buf, sizeof(buf), 0,
-                                server_addr->ai_addr, &server_addr->ai_addrlen);
-        if (rcvd == -1 && errno != EWOULDBLOCK && errno != EAGAIN) {
-          KALDI_ERR << "recvfrom() failed unexpectedly!";
-        } else if (rcvd > 0) {
-          buf[rcvd] = 0;
-          std::cout << buf;
-          std::cout.flush();
-        }
-      }
-      if (!more_feats) break;
     }
     freeaddrinfo(server_addr);
     return 0;

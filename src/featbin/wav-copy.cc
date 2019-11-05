@@ -62,6 +62,7 @@ int main(int argc, char *argv[]) {
       TableWriter<WaveHolder> wav_writer(wav_out_fn);
 
       for (; !wav_reader.Done(); wav_reader.Next()) {
+        std::cout << wav_reader.Value();
         wav_writer.Write(wav_reader.Key(), wav_reader.Value());
         num_done++;
       }

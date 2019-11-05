@@ -2,7 +2,7 @@ import numpy as np
 import pickle
 
 alis = open("./exp/alignments", "r").readlines()
-gt = pickle.load(open("frame_level_dict.pkl", "rb"))
+#gt = pickle.load(open("frame_level_dict.pkl", "rb"))
 
 alignments = {}
 for utt in alis:
