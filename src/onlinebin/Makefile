@@ -26,7 +26,7 @@ ifeq ($(UNAME), Darwin)
 endif
 
 
-BINFILES = online-client online-spectrogram-client online-net-client online-server-gmm-decode-faster online-gmm-decode-faster \
+BINFILES = online-fbank-client online-client online-spectrogram-client online-net-client online-server-gmm-decode-faster online-gmm-decode-faster \
            online-wav-gmm-decode-faster online-audio-server-decode-faster \
            online-audio-client
 

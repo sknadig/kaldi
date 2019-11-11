@@ -22,12 +22,9 @@
 
 #include <netdb.h>
 #include <fcntl.h>
-
-#include "feat/feature-spectrogram.h"
+#include "feat/feature-fbank.h"
 #include "online/online-audio-source.h"
 #include "online/online-feat-input.h"
-#include "feat/pitch-functions.h"
-
 
 
 int main(int argc, char *argv[]) {
@@ -35,7 +32,7 @@ int main(int argc, char *argv[]) {
     using namespace kaldi;
 
     typedef kaldi::int32 int32;
-    typedef OnlineFeInput<Spectrogram> FeInput;
+    typedef OnlineFeInput<Fbank> FeInput;
 
     // Time out interval for the PortAudio source
     const int32 kTimeout = 500; // half second
@@ -51,12 +48,6 @@ int main(int argc, char *argv[]) {
         "to a speech recognition server over a network connection\n\n"
         "Usage: online-net-client server-address server-port\n\n";
     ParseOptions po(usage);
-    SpectrogramOptions spec_opts;
-    PitchExtractionOptions pitch_opts;
-    ProcessPitchOptions process_opts;
-    pitch_opts.Register(&po);
-    process_opts.Register(&po);
-    
     int32 batch_size = 27;
     po.Register("batch-size", &batch_size,
                 "The number of feature vectors to be extracted and sent in one go");
@@ -90,13 +81,14 @@ int main(int argc, char *argv[]) {
     // We are not properly registering/exposing MFCC and frame extraction options,
     // because there are parts of the online decoding code, where some of these
     // options are hardwired(ToDo: we should fix this at some point)
-    
-
+    FbankOptions fbank_opts;
+    fbank_opts.mel_opts.num_bins = 80;
     int32 frame_length  = 25;
     int32 frame_shift =  10;
     OnlinePaSource au_src(kTimeout, kSampleFreq, kPaRingSize, kPaReportInt);
-    Spectrogram spec(spec_opts);
-    FeInput fe_input(&au_src, &spec,
+
+    Fbank fbank(fbank_opts);
+    FeInput fe_input(&au_src, &fbank,
                      frame_length * (kSampleFreq / 1000),
                      frame_shift * (kSampleFreq / 1000));
     std::cerr << std::endl << "Sending features to " << server_addr_str
@@ -104,9 +96,16 @@ int main(int argc, char *argv[]) {
     char buf[65535];
     Matrix<BaseFloat> feats;
     while (1) {
-      feats.Resize(batch_size, 257, kUndefined);
+      feats.Resize(batch_size, 80, kUndefined);
       bool more_feats = fe_input.Compute(&feats);
       if (feats.NumRows() > 0) {
+        
+        Vector<BaseFloat> mean(feats.NumCols());
+        mean.AddRowSumMat(1.0, feats);
+        mean.Scale(1.0 / feats.NumRows());
+        for (int32 i = 0; i < feats.NumRows(); i++)
+          feats.Row(i).AddVec(-1.0, mean);
+
         std::stringstream ss;
         feats.Write(ss, false); // serialize features as binary data
         std::cout << ss.str();
